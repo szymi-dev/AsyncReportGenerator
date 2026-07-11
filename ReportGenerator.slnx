@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="ReportGenerator.Api/ReportGenerator.Api.csproj" />
+  <Project Path="ReportGenerator.Application/ReportGenerator.Application.csproj" />
+  <Project Path="ReportGenerator.Domain/ReportGenerator.Domain.csproj" />
+  <Project Path="ReportGenerator.Infrastructure/ReportGenerator.Infrastructure.csproj" />
+  <Project Path="ReportGenerator.Worker/ReportGenerator.Worker.csproj" />
+</Solution>

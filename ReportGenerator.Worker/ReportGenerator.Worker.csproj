@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-ReportGenerator.Worker-3593fb9f-eb76-4f5b-b98d-a6f8b718846c</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit.RabbitMQ" Version="9.1.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+    <PackageReference Include="QuestPDF" Version="2026.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ReportGenerator.Application\ReportGenerator.Application.csproj" />
+    <ProjectReference Include="..\ReportGenerator.Infrastructure\ReportGenerator.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
