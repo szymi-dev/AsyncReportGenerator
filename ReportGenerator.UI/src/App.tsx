@@ -6,7 +6,8 @@ function App() {
   const [status, setStatus] = useState<string>('Brak zlecenia')
   const [reportId, setReportId] = useState<string | null>(null)
   
-  // Referencja do przechowywania interwału, żebyśmy mogli go zatrzymać
+  const [fileUrl, setFileUrl] = useState<string | null>(null)
+  
   const intervalRef = useRef<number | null>(null);
 
   const API_URL = 'https://localhost:7214/api/reports';
@@ -20,6 +21,11 @@ function App() {
 
       if (currentStatus === 'Completed') {
         setStatus('Gotowe! Twój plik PDF czeka na dysku serwera.');
+        
+        if (response.data.fileUrl) {
+            setFileUrl(response.data.fileUrl);
+        }
+
         if (intervalRef.current) {
             clearInterval(intervalRef.current);
         }
@@ -36,6 +42,7 @@ function App() {
     }
 
     try {
+      setFileUrl(null);
       setStatus('Wysyłanie zlecenia...');
       
       const response = await axios.post(API_URL, {
@@ -43,12 +50,18 @@ function App() {
       });
 
       if (response.status === 202) {
-        // Zakładamy, że Twój POST zwraca po prostu Guid w postaci tekstu lub w obiekcie
-        const newReportId = response.data.reportId;
+        console.log("Otrzymano z API:", response.data);
+
+        const newReportId = response.data.reportId || response.data.ReportId; 
+        
+        if (!newReportId) {
+            setStatus('Błąd: Backend nie zwrócił poprawnego ID.');
+            return;
+        }
+
         setReportId(newReportId);
         setStatus('Zlecenie przyjęte! (Status 202 - oczekiwanie na Workera...)');
 
-        // Uruchamiamy odpytywanie co 2 sekundy (2000 ms)
         intervalRef.current = window.setInterval(() => {
             checkStatus(newReportId);
         }, 2000);
@@ -76,8 +89,30 @@ function App() {
         </button>
       </div>
 
-      <div style={{ padding: '20px', backgroundColor: '#e8f4f8', borderRadius: '8px' }}>
-        <strong>Status na żywo: </strong> {status}
+      <div style={{ padding: '20px', backgroundColor: '#e8f4f8', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        <div>
+            <strong>Status na żywo: </strong> {status}
+        </div>
+        
+        {fileUrl && (
+            <a 
+                href={fileUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#4CAF50',
+                    color: 'white',
+                    textDecoration: 'none',
+                    textAlign: 'center',
+                    borderRadius: '5px',
+                    fontWeight: 'bold',
+                    width: 'fit-content'
+                }}
+            >
+                ⬇️ Pobierz plik PDF
+            </a>
+        )}
       </div>
       
       {reportId && (

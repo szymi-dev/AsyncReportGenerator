@@ -27,6 +27,6 @@ public class ReportRepository : IReportRepository
 
         if (report == null) return null;
 
-        return new ReportStatusDto(report.Id, report.Name, report.Status.ToString());
+        return new ReportStatusDto(report.Id, report.Name, report.Status.ToString(), report.FileUrl);
     }
 }

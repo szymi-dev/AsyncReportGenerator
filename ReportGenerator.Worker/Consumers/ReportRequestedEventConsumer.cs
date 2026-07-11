@@ -1,4 +1,6 @@
-﻿using MassTransit;
+﻿using Amazon.S3;
+using Amazon.S3.Model;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -35,12 +37,10 @@ public class ReportRequestedEventConsumer : IConsumer<ReportRequestedEvent>
         await _dbContext.SaveChangesAsync(context.CancellationToken);
         _logger.LogInformation("Zmieniono status na Processing...");
 
-        _logger.LogInformation("Rozpoczynam fizyczne generowanie pliku PDF...");
+        _logger.LogInformation("Rozpoczynam generowanie pliku PDF w pamięci...");
+        var fileName = $"raport_{message.ReportId}.pdf";
 
-        var fileName = $"{message.ReportName}_{message.ReportId}.pdf";
-        var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
-
-        Document.Create(container =>
+        var pdfBytes = Document.Create(container =>
         {
             container.Page(page =>
             {
@@ -58,25 +58,45 @@ public class ReportRequestedEventConsumer : IConsumer<ReportRequestedEvent>
                     .Column(x =>
                     {
                         x.Spacing(20);
-                        x.Item().Text("To jest prawdziwy plik wygenerowany w tle przez architekturę Event-Driven!");
+                        x.Item().Text("To jest tajny raport zapisany w prywatnym buckecie!");
                         x.Item().Text($"ID Zlecenia: {message.ReportId}");
-                        x.Item().Text($"Wygenerowano dokładnie o: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                    });
-
-                page.Footer()
-                    .AlignCenter()
-                    .Text(x =>
-                    {
-                        x.Span("Strona ");
-                        x.CurrentPageNumber();
                     });
             });
-        })
-        .GeneratePdf(filePath);
+        }).GeneratePdf();
 
-        _logger.LogInformation("Zapisano plik PDF na dysku w lokalizacji: {FilePath}", filePath);
+        _logger.LogInformation("Wysyłam plik do MinIO...");
 
-        report.MarkAsCompleted();
+        var s3Config = new AmazonS3Config
+        {
+            ServiceURL = "http://localhost:9000",
+            ForcePathStyle = true
+        };
+
+        using var s3Client = new AmazonS3Client("minioadmin", "minioadmin", s3Config);
+
+        using var stream = new MemoryStream(pdfBytes);
+        var putRequest = new PutObjectRequest
+        {
+            BucketName = "reports",
+            Key = fileName,
+            InputStream = stream,
+            ContentType = "application/pdf"
+        };
+
+        await s3Client.PutObjectAsync(putRequest, context.CancellationToken);
+
+        var urlRequest = new GetPreSignedUrlRequest
+        {
+            BucketName = "reports",
+            Key = fileName,
+            Expires = DateTime.UtcNow.AddHours(24),
+            Protocol = Protocol.HTTP
+        };
+
+        var fileUrl = s3Client.GetPreSignedURL(urlRequest);
+        _logger.LogInformation("Wygenerowano bezpieczny link: {FileUrl}", fileUrl);
+
+        report.MarkAsCompleted(fileUrl);
         await _dbContext.SaveChangesAsync(context.CancellationToken);
         _logger.LogInformation("Sukces! Zakończono przetwarzanie.");
     }

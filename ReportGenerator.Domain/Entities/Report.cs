@@ -8,6 +8,7 @@ public class Report
     public string Name { get; private set; } = string.Empty;
     public ReportStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+    public string? FileUrl { get; private set; }
 
     private Report() { }
 
@@ -31,9 +32,10 @@ public class Report
         Status = ReportStatus.Processing;
     }
 
-    public void MarkAsCompleted()
+    public void MarkAsCompleted(string fileUrl)
     {
         Status = ReportStatus.Completed;
+        FileUrl = fileUrl;
     }
 
     public void MarkAsFailed()
