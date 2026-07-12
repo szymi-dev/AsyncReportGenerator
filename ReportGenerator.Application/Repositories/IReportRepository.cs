@@ -6,5 +6,5 @@ namespace ReportGenerator.Application.Repositories;
 public interface IReportRepository
 {
     Task AddAsync(Report report, CancellationToken cancellationToken);
-    Task<ReportStatusDto> GetAsync(Guid Id);
+    Task<ReportStatusDto?> GetAsync(Guid Id);
 }
