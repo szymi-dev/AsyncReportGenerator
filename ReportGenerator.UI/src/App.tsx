@@ -1,39 +1,40 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
+import { HubConnectionBuilder } from '@microsoft/signalr'
 
 function App() {
   const [reportName, setReportName] = useState('')
-  const [status, setStatus] = useState<string>('Brak zlecenia')
+  const [status, setStatus] = useState<string>('Łączenie z serwerem...')
   const [reportId, setReportId] = useState<string | null>(null)
-  
   const [fileUrl, setFileUrl] = useState<string | null>(null)
-  
-  const intervalRef = useRef<number | null>(null);
+  const activeReportIdRef = useRef<string | null>(null);
 
   const API_URL = 'https://localhost:7214/api/reports';
+  const HUB_URL = 'https://localhost:7214/reportHub'; 
 
-  const checkStatus = async (id: string) => {
-    try {
-      const response = await axios.get(`${API_URL}/${id}`);
-      const currentStatus = response.data.status;
-      
-      setStatus(`Sprawdzanie... Obecny status w bazie: ${currentStatus}`);
+  useEffect(() => {
+    const connection = new HubConnectionBuilder()
+      .withUrl(HUB_URL)
+      .withAutomaticReconnect()
+      .build();
 
-      if (currentStatus === 'Completed') {
-        setStatus('Gotowe! Twój plik PDF czeka na dysku serwera.');
-        
-        if (response.data.fileUrl) {
-            setFileUrl(response.data.fileUrl);
-        }
+    connection.start()
+      .then(() => {
+          setStatus('Gotowy do pracy (Połączono z serwerem w czasie rzeczywistym)');
+      })
+      .catch(err => console.error('Błąd SignalR: ', err));
 
-        if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-        }
+    connection.on("ReportCompleted", (completedId: string, url: string) => {
+      if (activeReportIdRef.current === completedId) {
+        setStatus('Gotowe! Serwer wygenerował Twój raport.');
+        setFileUrl(url);
       }
-    } catch (error) {
-      console.error(error);
-    }
-  };
+    });
+
+    return () => {
+      connection.stop();
+    };
+  }, []);
 
   const handleGenerateClick = async () => {
     if (!reportName) {
@@ -43,6 +44,8 @@ function App() {
 
     try {
       setFileUrl(null);
+      setReportId(null);
+      activeReportIdRef.current = null;
       setStatus('Wysyłanie zlecenia...');
       
       const response = await axios.post(API_URL, {
@@ -50,8 +53,6 @@ function App() {
       });
 
       if (response.status === 202) {
-        console.log("Otrzymano z API:", response.data);
-
         const newReportId = response.data.reportId || response.data.ReportId; 
         
         if (!newReportId) {
@@ -60,14 +61,10 @@ function App() {
         }
 
         setReportId(newReportId);
-        setStatus('Zlecenie przyjęte! (Status 202 - oczekiwanie na Workera...)');
-
-        intervalRef.current = window.setInterval(() => {
-            checkStatus(newReportId);
-        }, 2000);
+        activeReportIdRef.current = newReportId; 
+        setStatus('Zlecenie przyjęte! (Czekam na sygnał od Workera...)');
       }
     } catch (error) {
-      console.error(error);
       setStatus('Wystąpił błąd podczas komunikacji z API.');
     }
   }

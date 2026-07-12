@@ -13,31 +13,25 @@ namespace ReportGenerator.Worker.Consumers;
 public class ReportRequestedEventConsumer : IConsumer<ReportRequestedEvent>
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly ILogger<ReportRequestedEventConsumer> _logger;
 
-    public ReportRequestedEventConsumer(ApplicationDbContext dbContext, ILogger<ReportRequestedEventConsumer> logger)
+    public ReportRequestedEventConsumer(ApplicationDbContext dbContext)
     {
         _dbContext = dbContext;
-        _logger = logger;
     }
 
     public async Task Consume(ConsumeContext<ReportRequestedEvent> context)
     {
         var message = context.Message;
-        _logger.LogInformation("Odebrano zlecenie na raport: {ReportName} (ID: {Id})", message.ReportName, message.ReportId);
 
         var report = await _dbContext.Reports.FindAsync(new object[] { message.ReportId }, context.CancellationToken);
         if (report == null)
         {
-            _logger.LogWarning("Nie znaleziono raportu w bazie!");
             return;
         }
 
         report.MarkAsProcessing();
         await _dbContext.SaveChangesAsync(context.CancellationToken);
-        _logger.LogInformation("Zmieniono status na Processing...");
 
-        _logger.LogInformation("Rozpoczynam generowanie pliku PDF w pamięci...");
         var fileName = $"raport_{message.ReportId}.pdf";
 
         var pdfBytes = Document.Create(container =>
@@ -58,13 +52,11 @@ public class ReportRequestedEventConsumer : IConsumer<ReportRequestedEvent>
                     .Column(x =>
                     {
                         x.Spacing(20);
-                        x.Item().Text("To jest tajny raport zapisany w prywatnym buckecie!");
+                        x.Item().Text("Raport xyz");
                         x.Item().Text($"ID Zlecenia: {message.ReportId}");
                     });
             });
         }).GeneratePdf();
-
-        _logger.LogInformation("Wysyłam plik do MinIO...");
 
         var s3Config = new AmazonS3Config
         {
@@ -94,10 +86,10 @@ public class ReportRequestedEventConsumer : IConsumer<ReportRequestedEvent>
         };
 
         var fileUrl = s3Client.GetPreSignedURL(urlRequest);
-        _logger.LogInformation("Wygenerowano bezpieczny link: {FileUrl}", fileUrl);
 
         report.MarkAsCompleted(fileUrl);
         await _dbContext.SaveChangesAsync(context.CancellationToken);
-        _logger.LogInformation("Sukces! Zakończono przetwarzanie.");
+
+        await context.Publish(new ReportCompletedEvent(message.ReportId, fileUrl));
     }
 }
