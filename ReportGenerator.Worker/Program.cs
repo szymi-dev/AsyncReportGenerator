@@ -3,8 +3,16 @@ using Microsoft.EntityFrameworkCore;
 using QuestPDF.Infrastructure;
 using ReportGenerator.Infrastructure.Persistence;
 using ReportGenerator.Worker.Consumers;
+using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.AddSerilog((services, loggerConfiguration) => loggerConfiguration
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("ApplicationName", "ReportGenerator.Worker")
+    .WriteTo.Console()
+    .WriteTo.Seq("http://localhost:5341"));
 
 QuestPDF.Settings.License = LicenseType.Community;
 
@@ -24,6 +32,8 @@ builder.Services.AddMassTransit(x =>
             h.Username("guest");
             h.Password("guest");
         });
+
+        cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
 
         cfg.ConfigureEndpoints(context);
     });

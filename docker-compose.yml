@@ -31,3 +31,12 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+  seq:
+    image: datalust/seq:latest
+    container_name: rg-seq
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_ADMINPASSWORD=Admin123!
+    ports:
+      - "5341:5341"
+      - "8081:80"
