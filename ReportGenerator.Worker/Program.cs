@@ -11,6 +11,8 @@ QuestPDF.Settings.License = LicenseType.Community;
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+var rabbitHost = builder.Configuration["RabbitMqHost"] ?? "localhost";
+
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<ReportRequestedEventConsumer>();

@@ -14,6 +14,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+var rabbitHost = builder.Configuration["RabbitMqHost"] ?? "localhost";
+
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<ReportGenerator.Api.Consumers.ReportCompletedEventConsumer>();
@@ -65,5 +67,11 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.MapHub<ReportGenerator.Api.Hubs.ReportHub>("/reportHub");
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    dbContext.Database.Migrate();
+}
 
 app.Run();
