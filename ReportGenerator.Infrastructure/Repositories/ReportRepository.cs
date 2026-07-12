@@ -21,7 +21,7 @@ public class ReportRepository : IReportRepository
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<ReportStatusDto?> GetAsync(Guid Id)
+    public async Task<ReportStatusDto> GetAsync(Guid Id)
     {
         var report = await _dbContext.FindAsync<Report>(Id);
 
