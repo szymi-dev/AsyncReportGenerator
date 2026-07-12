@@ -85,7 +85,7 @@ public class ReportRequestedEventConsumer : IConsumer<ReportRequestedEvent>
             Protocol = Protocol.HTTP
         };
 
-        var fileUrl = s3Client.GetPreSignedURL(urlRequest);
+        var fileUrl = s3Client.GetPreSignedURL(urlRequest); //test
 
         report.MarkAsCompleted(fileUrl);
         await _dbContext.SaveChangesAsync(context.CancellationToken);
